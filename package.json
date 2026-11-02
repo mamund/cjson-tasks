@@ -1,0 +1,9 @@
+{
+  "name": "tasklist-cjson",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node server/index.mjs", "test": "node --test tests/*.test.mjs" },
+  "dependencies": { "@mamund/comp-json-store": "0.1.0" }
+}
