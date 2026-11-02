@@ -24,7 +24,8 @@ test('M2 API: tasks, users, validation, filtering, immutable estimates and persi
     assert.equal((await request('/tasks/T100', 'PATCH', { estimatedHours: 6 })).status, 409);
     assert.equal((await request('/users/U100', 'PATCH', { budgetHours: 50 })).status, 409);
     assert.equal((await request('/tasks/T100', 'PATCH', { title: 'Reviewed' })).status, 200);
-    assert.equal((await request('/tasks/T100/assignment', 'POST', { userId: 'U100' })).status, 501);
+    assert.equal((await request('/tasks/T100/assignment', 'POST', { userId: 'U100' })).status, 201);
+    assert.equal((await request('/tasks/T100/assignment', 'DELETE')).status, 201);
     assert.equal((await request('/tasks/T100', 'DELETE')).status, 204);
     await app.close(); app = null;
     app = await createApp({ dataDir: dir });

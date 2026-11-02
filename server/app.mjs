@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { JsonStore } from '@mamund/comp-json-store';
+import { activityService } from './activities.mjs';
 
 const statuses = new Set(['OPEN', 'IN_PROGRESS', 'COMPLETED']);
 const validHours = value => Number.isSafeInteger(value) && value >= 0;
@@ -23,15 +24,24 @@ async function bodyJson(req) {
   if (!text) fail(400, 'Invalid request', 'JSON body required');
   try { return JSON.parse(text); } catch { fail(400, 'Invalid request', 'Malformed JSON'); }
 }
+function idempotencyKey(req) {
+  const value = req.headers['idempotency-key'];
+  if (value === undefined) return null;
+  if (typeof value !== 'string' || !/^[\x21-\x7e]{1,128}$/.test(value))
+    fail(400, 'Invalid Idempotency-Key', 'Idempotency-Key must be 1–128 printable ASCII characters without spaces');
+  return value;
+}
 const record = (entry) => ({ id: entry.id, ...entry.document });
 
-export async function createApp({ dataDir }) {
+export async function createApp({ dataDir, afterStepCommit, afterCompensationCommit, afterReconcileLedgerCommit } = {}) {
   const store = new JsonStore(dataDir);
   await store.open();
+  const activities = activityService(store, { afterStepCommit, afterCompensationCommit, afterReconcileLedgerCommit });
+  await activities.initialize();
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const path = url.pathname;
-    try {
+    const dispatch = async () => {
       const segments = path.split('/').filter(Boolean);
       if (segments.length === 1 && ['tasks', 'users'].includes(segments[0])) {
         const collection = segments[0];
@@ -100,14 +110,47 @@ export async function createApp({ dataDir }) {
         if (!operation) fail(404, 'Not found', 'Operation does not exist');
         return send(res, 200, operation);
       }
-      if (segments[0] === 'activities' || (segments[0] === 'tasks' && segments[2] === 'assignment') || (segments[0] === 'tasks' && segments[2] === 'completion')) {
-        fail(501, 'Not implemented', 'Assignment, completion, and coordinated compensation are planned for M3');
+      if (segments[0] === 'activities') {
+        if (segments.length === 1 && req.method === 'GET') return send(res, 200, await activities.list());
+        if (segments.length === 2 && req.method === 'GET') {
+          const a = await activities.get(segments[1]);
+          if (!a) fail(404, 'Not found', 'Activity does not exist');
+          return send(res, 200, a);
+        }
+        if (segments.length === 3 && segments[2] === 'compensations' && req.method === 'POST') {
+          const a = await activities.compensate(segments[1]);
+          return send(res, a.status === 'COMPENSATED' ? 200 : 409, a);
+        }
+      }
+      if (segments[0] === 'tasks' && segments.length === 3) {
+        const taskId = segments[1];
+        if (segments[2] === 'assignment') {
+          if (req.method === 'POST' || req.method === 'PUT') {
+            const body = await bodyJson(req); requireObject(body);
+            if (!allowed(body, ['userId']) || typeof body.userId !== 'string' || !body.userId) fail(400, 'Invalid request', 'userId is required');
+            const { activity: a, replayed } = await activities.run(req.method === 'POST' ? 'ASSIGN' : 'REASSIGN', taskId, body.userId, idempotencyKey(req));
+            return send(res, replayed ? 200 : 201, a, { location: `/activities/${a.id}`, ...(replayed ? { 'idempotency-replayed': 'true' } : {}) });
+          }
+          if (req.method === 'DELETE') {
+            const { activity: a, replayed } = await activities.run('UNASSIGN', taskId, undefined, idempotencyKey(req));
+            return send(res, replayed ? 200 : 201, a, { location: `/activities/${a.id}`, ...(replayed ? { 'idempotency-replayed': 'true' } : {}) });
+          }
+        }
+        if (segments[2] === 'completion' && req.method === 'PUT') {
+          const { activity: a, replayed } = await activities.run('COMPLETE', taskId, undefined, idempotencyKey(req));
+          return send(res, replayed ? 200 : 201, a, { location: `/activities/${a.id}`, ...(replayed ? { 'idempotency-replayed': 'true' } : {}) });
+        }
       }
       fail(404, 'Not found', 'No matching endpoint');
+    };
+    try {
+      const isActivityMutation = (path.startsWith('/activities/') && req.method === 'POST') || (path.startsWith('/tasks/') && (path.endsWith('/assignment') || path.endsWith('/completion')));
+      if (!['GET', 'HEAD'].includes(req.method) && !isActivityMutation) await activities.exclusive(dispatch);
+      else await dispatch();
     } catch (e) {
       const status = e.status ?? ({ DOCUMENT_EXISTS: 409, DOCUMENT_NOT_FOUND: 404, INVALID_DOCUMENT: 400, INVALID_NAME: 400 }[e.code] ?? 500);
       problem(res, status, e.title ?? (status === 500 ? 'Internal server error' : 'Request failed'), status === 500 ? 'An unexpected server error occurred' : e.message, path);
     }
   });
-  return { server, store, async close() { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); await store.close(); } };
+  return { server, store, reconcile: () => activities.reconcile(), async close() { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); await store.close(); } };
 }
