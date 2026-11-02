@@ -1,3 +1,9 @@
+/**
+ * tests/compensation-reconcile.test.mjs
+ *
+ * Tests compensation reconcile.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -10,10 +16,12 @@ test('restart reconciles committed compensation without double reversal', async 
   t.after(() => rm(dir, { recursive: true, force: true }));
   let crash = false;
   let app;
+  /** Initialize a test server and storage fixture. */
   async function start() {
     app = await createApp({ dataDir: dir, afterCompensationCommit: () => { if (crash) throw Error('injected compensation interruption'); } });
     await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   }
+  /** Implement the req helper. */
   async function req(method, path, body) {
     const response = await fetch(`http://127.0.0.1:${app.server.address().port}${path}`, {
       method, headers: body ? { 'content-type': 'application/json' } : {},

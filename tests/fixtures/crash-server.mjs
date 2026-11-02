@@ -1,3 +1,9 @@
+/**
+ * tests/fixtures/crash-server.mjs
+ *
+ * Tests crash server scenarios and expected behavior.
+ */
+
 import { createApp } from '../../server/app.mjs';
 
 const mode = process.env.CRASH_MODE ?? 'none';

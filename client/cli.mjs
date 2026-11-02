@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+
+/**
+ * client/cli.mjs
+ *
+ * Implements the standalone TaskList command-line interface.
+ */
+
 import { pathToFileURL } from 'node:url';
 import { apiRequest, ApiError } from './http-client.mjs';
 
@@ -35,6 +42,8 @@ Exit codes: 0 success; 1 HTTP/network error; 2 usage error.
 `;
 class UsageError extends Error {}
 const enc = encodeURIComponent;
+
+/** Parse CLI options and positional arguments. */
 function parse(args) {
   const flags = {};
   const positional = [];
@@ -53,16 +62,28 @@ function parse(args) {
   }
   return { flags, positional };
 }
+
+/** Validate the allowed options for a CLI command. */
 function only(flags, names) {
   const globals = ['server', 'output', 'idempotency-key'];
   for (const key of Object.keys(flags)) if (![...globals, ...names].includes(key)) throw new UsageError(`Option --${key} is not valid for this command`);
 }
+
+/** Check the expected number of positional arguments. */
 function requireArgs(parts, n) { if (parts.length !== n) throw new UsageError(`Expected ${n} command argument(s), received ${parts.length}`); }
+
+/** Parse and validate an integer CLI option. */
 function positiveInt(s, label, zero = false) {
-  if (s === undefined || !/^(0|[1-9][0-9]*)$/.test(s) || !Number.isSafeInteger(Number(s)) || (!zero && Number(s) === 0)) throw new UsageError(`${label} must be ${zero ? 'a nonnegative' : 'a positive'} integer`);
+  if (s === undefined || !/^(0|[1-9][0-9]*)$/.test(s) || !Number.isSafeInteger(Number(s)) || (!zero && Number(s) === 0)) {
+    throw new UsageError(`${label} must be ${zero ? 'a nonnegative' : 'a positive'} integer`);
+  }
   return Number(s);
 }
+
+/** Require a nonempty text argument. */
 function required(value, label) { if (typeof value !== 'string' || !value.trim()) throw new UsageError(`${label} is required`); return value; }
+
+/** Translate CLI arguments into an HTTP request. */
 function command(parts, flags) {
   const [resource, action, ...rest] = parts;
   if (!resource || !action) throw new UsageError('Missing command');
@@ -124,6 +145,8 @@ function command(parts, flags) {
   }
   throw new UsageError(`Unknown command: ${resource} ${action}`);
 }
+
+/** Execute the selected CLI command and format its response. */
 export async function run(argv, { out = console.log, err = console.error, request = apiRequest } = {}) {
   try {
     const parsed = parse(argv);
@@ -148,4 +171,5 @@ export async function run(argv, { out = console.log, err = console.error, reques
     return 1;
   }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await run(process.argv.slice(2));
+if (process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await run(process.argv.slice(2));

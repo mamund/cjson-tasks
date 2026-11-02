@@ -1,3 +1,9 @@
+/**
+ * tests/failure-boundaries.test.mjs
+ *
+ * Tests failure boundaries.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -5,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/app.mjs';
 
+/** Construct a test harness with injectable failure hooks. */
 async function harness(t, hooks = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'tasklist-boundary-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

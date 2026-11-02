@@ -1,8 +1,15 @@
+/**
+ * server/activities.mjs
+ *
+ * Coordinates task activities, budget reservations, compensation, and journal-based recovery.
+ */
+
 import { randomUUID } from 'node:crypto';
 
 const conflict = detail => Object.assign(new Error(detail), { status: 409, title: 'Conflict' });
 const incomplete = a => ['PREPARED', 'APPLYING', 'COMPENSATING', 'RECOVERY_REQUIRED', 'COMPENSATION_FAILED'].includes(a.status);
 
+/** Create the serialized activity service and recovery operations. */
 export function activityService(store, { afterStepCommit, afterCompensationCommit, afterReconcileLedgerCommit } = {}) {
   let queue = Promise.resolve();
   let blocked = false;
@@ -26,6 +33,7 @@ export function activityService(store, { afterStepCommit, afterCompensationCommi
   const execute = (step) => step.kind === 'SET' ? store.set(step.collection, step.id, step.field, step.value)
     : step.kind === 'ADD' ? store.add(step.collection, step.id, step.field, step.amount)
     : store.subtract(step.collection, step.id, step.field, step.amount);
+  /** Record a step intent and journal boundary before mutation. */
   async function recordIntent(id, index, step) {
     const history = await store.history(step.collection, step.id);
     const boundary = history.at(-1)?.sequence ?? 0;
@@ -34,6 +42,7 @@ export function activityService(store, { afterStepCommit, afterCompensationCommi
   // Persist a compensation intent before touching the original operation.
   // The original operation's compensationId is journal-derived evidence even
   // when the response from store.compensate() was lost.
+  /** Resume an interrupted compensation from journal evidence. */
   async function reconcileCompensation(id) {
     let a = await get(id);
     if (!Array.isArray(a.operations) || !Array.isArray(a.compensationResults) ||
@@ -81,6 +90,7 @@ export function activityService(store, { afterStepCommit, afterCompensationCommi
     await update(id, 'status', 'COMPENSATED');
     return { id, status: 'COMPENSATED' };
   }
+  /** Reconcile unfinished activities against committed journal operations. */
   async function reconcile() {
     // Must be called with the server quiescent; no external writers may use this store.
     return exclusiveReconcile(async () => {
@@ -182,6 +192,7 @@ export function activityService(store, { afterStepCommit, afterCompensationCommi
     return withOrder.at(-1)?.activity;
   };
 
+  /** Execute the selected CLI command and format its response. */
   async function run(type, taskId, targetUserId, idempotencyKey = null) {
     return exclusive(async () => {
       // Check the durable activity ledger before evaluating mutable business state.
@@ -251,6 +262,7 @@ export function activityService(store, { afterStepCommit, afterCompensationCommi
     });
   }
 
+  /** Implement the compensate helper. */
   async function compensate(id) {
     return exclusive(async () => {
       const a = await get(id);

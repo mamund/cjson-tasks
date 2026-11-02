@@ -1,3 +1,9 @@
+/**
+ * server/app.mjs
+ *
+ * Defines HTTP routes, request validation, and TaskList resource behavior.
+ */
+
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { JsonStore } from '@mamund/comp-json-store';
@@ -18,12 +24,16 @@ const problem = (res, status, title, detail, path) => {
   res.writeHead(status, { 'content-type': 'application/problem+json; charset=utf-8' });
   res.end(JSON.stringify({ type: 'about:blank', title, status, detail, instance: path }));
 };
+
+/** Parse a JSON request body and report invalid input. */
 async function bodyJson(req) {
   let text = '';
   for await (const chunk of req) { text += chunk; if (text.length > 1024 * 1024) fail(413, 'Payload too large', 'Maximum request body is 1 MB'); }
   if (!text) fail(400, 'Invalid request', 'JSON body required');
   try { return JSON.parse(text); } catch { fail(400, 'Invalid request', 'Malformed JSON'); }
 }
+
+/** Validate the optional idempotency key header. */
 function idempotencyKey(req) {
   const value = req.headers['idempotency-key'];
   if (value === undefined) return null;
@@ -33,6 +43,7 @@ function idempotencyKey(req) {
 }
 const record = (entry) => ({ id: entry.id, ...entry.document });
 
+/** Open storage, initialize activities, and construct the HTTP server. */
 export async function createApp({ dataDir, afterStepCommit, afterCompensationCommit, afterReconcileLedgerCommit } = {}) {
   const store = new JsonStore(dataDir);
   await store.open();

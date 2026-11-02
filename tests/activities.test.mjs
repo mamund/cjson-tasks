@@ -1,3 +1,9 @@
+/**
+ * tests/activities.test.mjs
+ *
+ * Tests activities.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -5,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/app.mjs';
 
+/** Create a test fixture and register cleanup. */
 async function setup(t) {
   const dir = await mkdtemp(join(tmpdir(), 'tasklist-m3-'));
   let app = await createApp({ dataDir: dir });

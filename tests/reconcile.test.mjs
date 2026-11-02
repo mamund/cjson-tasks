@@ -1,3 +1,9 @@
+/**
+ * tests/reconcile.test.mjs
+ *
+ * Tests reconcile.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -5,10 +11,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/app.mjs';
 
+/** Initialize a test server and storage fixture. */
 async function start(dir, afterStepCommit) {
   const app = await createApp({ dataDir: dir, afterStepCommit });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.server.address().port}`;
+  /** Implement the req helper. */
   async function req(method, path, body) {
     const response = await fetch(base + path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
     return { status: response.status, body: response.status === 204 ? null : await response.json() };

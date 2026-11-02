@@ -1,3 +1,9 @@
+/**
+ * tests/api.test.mjs
+ *
+ * Tests api.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';

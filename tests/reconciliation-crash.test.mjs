@@ -1,3 +1,9 @@
+/**
+ * tests/reconciliation-crash.test.mjs
+ *
+ * Tests reconciliation crash.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
@@ -8,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 
 const fixture = fileURLToPath(new URL('./fixtures/crash-server.mjs', import.meta.url));
 const timeout = (promise, label) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(Error(`${label} timed out`)), 10000))]);
+
+/** Launch a separate server process for crash testing. */
 async function launch(t, dir, mode = 'none', index = 0) {
   const child = fork(fixture, { env: { ...process.env, DATA_DIR: dir, CRASH_MODE: mode, CRASH_INDEX: String(index) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   let stderr = '';

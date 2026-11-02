@@ -1,3 +1,9 @@
+/**
+ * client/http-client.mjs
+ *
+ * Provides the CLI HTTP transport and response handling.
+ */
+
 export class ApiError extends Error {
   constructor(status, body) {
     super(body?.detail ?? body?.title ?? `HTTP ${status}`);
@@ -7,6 +13,7 @@ export class ApiError extends Error {
   }
 }
 
+/** Send an HTTP request and handle success or error responses. */
 export async function apiRequest(baseUrl, method, path, { body, idempotencyKey, fetchImpl = fetch } = {}) {
   const headers = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';

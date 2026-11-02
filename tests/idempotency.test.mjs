@@ -1,3 +1,9 @@
+/**
+ * tests/idempotency.test.mjs
+ *
+ * Tests idempotency.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';

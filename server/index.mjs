@@ -1,3 +1,9 @@
+/**
+ * server/index.mjs
+ *
+ * Starts the TaskList HTTP server.
+ */
+
 import { createApp } from './app.mjs';
 const port = Number(process.env.PORT ?? 3000);
 const dataDir = process.env.DATA_DIR ?? './data';

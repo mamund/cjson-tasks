@@ -1,3 +1,9 @@
+/**
+ * tests/process-boundaries-extended.test.mjs
+ *
+ * Tests process boundaries extended.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
@@ -8,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 
 const fixture = fileURLToPath(new URL('./fixtures/crash-server.mjs', import.meta.url));
 const timeout = (promise, label) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(Error(`${label} timed out`)), 10000))]);
+
+/** Launch a separate server process for crash testing. */
 async function launch(t, dir, mode = 'none', index = 0) {
   const child = fork(fixture, { env: { ...process.env, DATA_DIR: dir, CRASH_MODE: mode, CRASH_INDEX: String(index) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   let stderr = '';
@@ -49,6 +57,8 @@ const scenarios = [
   { name: 'unassign', method: 'DELETE', path: '/tasks/T1/assignment', setup: [['POST', '/tasks/T1/assignment', { userId: 'U1' }]], steps: 2, after: [null, 'OPEN', 10, 10], before: ['U1', 'OPEN', 6, 10] },
   { name: 'complete', method: 'PUT', path: '/tasks/T1/completion', setup: [['POST', '/tasks/T1/assignment', { userId: 'U1' }]], steps: 2, after: ['U1', 'COMPLETED', 10, 10], before: ['U1', 'OPEN', 6, 10] }
 ];
+
+/** Read the current API state for assertions. */
 async function state(api) {
   const task = (await api.req('GET', '/tasks/T1')).body;
   const a = (await api.req('GET', '/users/U1')).body;

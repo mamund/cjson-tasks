@@ -1,3 +1,9 @@
+/**
+ * tests/cli.test.mjs
+ *
+ * Tests cli.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -6,12 +12,14 @@ import { join } from 'node:path';
 import { createApp } from '../server/app.mjs';
 import { run } from '../client/cli.mjs';
 
+/** Create a test fixture and register cleanup. */
 async function setup(t) {
   const dir = await mkdtemp(join(tmpdir(), 'tasklist-cli-'));
   const app = await createApp({ dataDir: dir });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   t.after(async () => { await app.close(); await rm(dir, { recursive: true, force: true }); });
   const server = `http://127.0.0.1:${app.server.address().port}`;
+  /** Implement the cli helper. */
   async function cli(...args) {
     const stdout = [], stderr = [];
     const code = await run(['--server', server, '--output', 'json', ...args], { out: x => stdout.push(x), err: x => stderr.push(x) });

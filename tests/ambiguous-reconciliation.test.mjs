@@ -1,3 +1,9 @@
+/**
+ * tests/ambiguous-reconciliation.test.mjs
+ *
+ * Tests ambiguous reconciliation.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -5,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/app.mjs';
 
+/** Initialize a test server and storage fixture. */
 async function start(dir, hook) {
   const app = await createApp({ dataDir: dir, afterStepCommit: hook });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));

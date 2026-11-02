@@ -1,3 +1,9 @@
+/**
+ * tests/process-crash.test.mjs
+ *
+ * Tests process crash.test scenarios and expected behavior.
+ */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
@@ -9,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 const fixture = fileURLToPath(new URL('./fixtures/crash-server.mjs', import.meta.url));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+/** Initialize a test server and storage fixture. */
 async function start(t, dir, mode = 'none') {
   const child = fork(fixture, [], { env: { ...process.env, DATA_DIR: dir, CRASH_MODE: mode }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   let stderr = '';
